@@ -1,0 +1,9 @@
+streamlit==1.30.0
+chromadb==0.4.3
+sentence-transformers==2.2.2
+pypdf==3.17.1
+requests==2.31.0
+tiktoken==0.5.2
+sqlite3==3.38.5
+langchain==0.1.13
+langchain-community==0.0.27
