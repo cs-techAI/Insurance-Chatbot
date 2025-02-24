@@ -31,7 +31,7 @@ def pdf_process(file):
     return file_content
 
 # chunk text
-def chunk_text(text, chunk_size=250, chunk_overlap=50):   # breaks down text into small chunks
+def chunk_text(text, chunk_size=400, chunk_overlap=50):   # breaks down text into small chunks
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap) 
     return text_splitter.split_text(text)   # done to store data efficiently / improves search accuracy 
     # this doesnt break text
@@ -61,7 +61,7 @@ def store_chunks(chunks):   # takes in list of chunks
     st.success(f"✅ Stored {len(chunks)} Chunks in Vector DB")
 
 # query stored embeddings
-def query_embeddings(query_text, top_k=3):   # finds top 3 most relevant text from the stored db
+def query_embeddings(query_text, top_k=5):   # finds top 3 most relevant text from the stored db
     query_embedding = generate_embeddings(query_text)  # it retrieves insurance related info
     results = collection.query(query_embeddings=[query_embedding], n_results=top_k)  # compares query emb with stored emb
     return results
@@ -75,9 +75,11 @@ You are an AI specializing in **insurance extraction**. Your task is to extract 
 from the provided context. The user may upload documents related to various types of insurance, such as bike insurance, 
 car insurance, health insurance, and more. Ensure that the extracted details are relevant and formatted properly.
 
+If any detail is missing, **infer it based on context instead of leaving it blank**.
+
 **Extract the following details if available:**
 - **Owner Name**
-- **Insurance Type** (Bike, Car, Health, Life, etc.)
+- **Insurance Type** (Bike, Car, Truck, Bus etc.)
 - **Vehicle Model** (if applicable)
 - **Registration Number** (if applicable)
 - **Insurance Provider**
@@ -86,8 +88,6 @@ car insurance, health insurance, and more. Ensure that the extracted details are
 - **Policy Expiry Date**
 - **Additional Coverage Details**
 
-If any detail is missing, indicate "Not Available."
-
 **Context:**
 {context}
 
@@ -95,14 +95,13 @@ If any detail is missing, indicate "Not Available."
 
 **Provide a confidence score (0-100%) based on accuracy.**
 """
-
     tokens_used = calculate_token_count(full_prompt)  # cal no. of tokens 
     # defines the request body that will be sent to the DeepSeek API
     payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": full_prompt}]}  # message format is similar openai
 
     try:
         response = requests.post(url, headers=headers, data=json.dumps(payload))  # sends post request to deepseek also converts payload dict. into json
-        if response.status_code != 200:
+        if response.status_code != 200:  # executes if the response code is not 200
             return "API Error", None
 
         # api response structure "choices", "message", "content"
@@ -117,7 +116,7 @@ If any detail is missing, indicate "Not Available."
                 confidence_score = line.split(":")[-1].strip().replace("%", "")
 
         if confidence_score and confidence_score.isdigit():
-            confidence_score = int(confidence_score)   # converts to int
+            confidence_score = int(confidence_score)   # converts to int only if ai responds in a number
         else:
             confidence_score = "Not provided"
 
@@ -154,7 +153,7 @@ if deepseek_api_key and user_query:   # execute 10
 
 
     # convert AI response to CSV
-    response_data = [line.split(": ") for line in response.split("\n") if ": " in line]  
+    response_data = [line.split(": ", 1) for line in response.split("\n") if ": " in line]  
     # as per the prompt there will be : so i used it to split 
     df = pd.DataFrame(response_data, columns=["Column 1", "Column 2"])  # converts into panda df
 
